@@ -16,18 +16,15 @@ import {
   Clock,
   Coins,
   Cpu,
-  Database,
   FileCheck,
   FileOutput,
   FileText,
   Layers,
   Scale,
   ShieldCheck,
-  Sparkles,
   Timer,
   BookOpen,
   Star,
-  UserCheck,
 } from "lucide-react";
 
 function toNum(v, fallback = 0) {
@@ -122,7 +119,7 @@ function formatDateTime(value) {
   return d.toLocaleString();
 }
 
-export default function BRDRunMetricsDashboard({ data: dynamicData }) {
+export default function BRDRunMetricsDashboard({ data: dynamicData, viewMode = "high-level" }) {
   const fallbackData = {
     run_id: "23195ef4-c481-4126-88f6-a1a606a38f9a",
     project_id: "b102e32d-4047-4ac0-9ee7-906c0cecd347",
@@ -268,18 +265,17 @@ export default function BRDRunMetricsDashboard({ data: dynamicData }) {
   const cost = toNum(data.cost?.total_cost_usd, 0);
   const timestamp = data.recorded_at || data.timing?.run_started_at || null;
 
-  const llmUsage = data.llm_usage ?? {};
+  const llmUsage = data.llm_usage;
   const costModel = data.cost ?? {};
-  const timing = data.timing ?? {};
+  const timing = data.timing;
   const sections = data.sections ?? {};
-  const quality = data.quality ?? {};
+  const quality = data.quality;
   const conflicts = data.conflicts ?? {};
   const output = data.output ?? {};
-  const acceptance = data.acceptance ?? {};
   
-  const smart = quality.requirement_quality?.smart_scores ?? {};
-  const completeness = quality.section_completeness ?? {};
-  const byStage = llmUsage.by_stage ?? {};
+  const smart = quality?.requirement_quality?.smart_scores;
+  const completeness = quality?.section_completeness ?? {};
+  const byStage = llmUsage?.by_stage;
   const reviewCycles = sections.review_cycles ?? {};
   const perSectionRework = reviewCycles.per_section ?? {};
   const totalRegens = toNum(reviewCycles.total_regenerations, 0);
@@ -349,12 +345,64 @@ export default function BRDRunMetricsDashboard({ data: dynamicData }) {
         duration={totalDuration}
         cost={cost}
         timestamp={timestamp}
+        runLabel={data.runLabel}
+        runId={data.run_id || data.runId}
       />
 
       <PipelineFlow agentType="brd" data={data} />
 
-      <SectionBlock
-        eyebrow="Execution overview"
+      {viewMode === "high-level" ? (
+        <SectionBlock
+          eyebrow="Quality signals"
+          title="BRD Quality Performance"
+          description="High-level assessment of the Business Requirements Document quality, completeness, and consistency."
+        >
+          <div className="metric-grid-4" style={{ marginBottom: "var(--space-6)" }}>
+            <MetricCard
+              label="SMART Quality"
+              value={toNum(smart.avg_score, 0)}
+              icon={Star}
+              unit="/ 1.0"
+              deltaType={toNum(smart.avg_score, 0) >= 0.65 ? "up" : "down"}
+              delta={`${(toNum(smart.avg_score, 0) * 100).toFixed(1)}% score`}
+            />
+            <MetricCard
+              label="Section Completeness"
+              value={toNum(completeness.overall_pct, 0)}
+              icon={FileCheck}
+              unit="%"
+              subtext={`${toNum(sections.succeeded, 0)} / ${toNum(sections.attempted, 0)} sections completed`}
+            />
+            <MetricCard
+              label="Requirements Relevance"
+              value={toNum(smart.relevant_pct, 0)}
+              icon={Brain}
+              unit="%"
+              subtext={`SMART relevance evaluation`}
+            />
+            <MetricCard
+              label="Conflict Resolution Rate"
+              value={toNum(conflicts.resolution_rate_pct, 0)}
+              icon={ShieldCheck}
+              unit="%"
+              subtext={`${toNum(conflicts.resolved_count, 0)} / ${toNum(conflicts.detected_count, 0)} conflicts resolved`}
+            />
+          </div>
+
+          <SectionGrid columns={3}>
+            <QualityScoresChart scores={qualityScores} />
+            <SectionCompletenessChart completenessScores={sectionCompletenessScores} />
+            <RequirementQualityChart
+              highCount={quality.requirement_quality?.high_quality_count ?? 0}
+              mediumCount={quality.requirement_quality?.medium_quality_count ?? 0}
+              lowCount={quality.requirement_quality?.low_quality_count ?? 0}
+            />
+          </SectionGrid>
+        </SectionBlock>
+      ) : (
+        <>
+          <SectionBlock
+            eyebrow="Execution overview"
         title="Business Requirements Document (BRD) pipeline"
         description="Core metrics, requirement completeness, conflict resolution, and end-to-end output details for the active BRD agent run."
       >
@@ -775,6 +823,8 @@ export default function BRDRunMetricsDashboard({ data: dynamicData }) {
           </DetailPanel>
         </SectionGrid>
       </SectionBlock>
+        </>
+      )}
 
       {!data.run_outcome?.success && data.run_outcome?.error_message && (
         <section className="techdoc-error-banner">

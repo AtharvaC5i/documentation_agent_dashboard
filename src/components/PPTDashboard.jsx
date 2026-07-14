@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   Sparkles,
   Workflow,
-  FileText,
   LayoutTemplate,
   Clock3,
 } from "lucide-react";
@@ -207,26 +206,6 @@ function SectionBlock({ eyebrow, title, subtitle, icon: Icon, children }) {
   );
 }
 
-function toBool(value) {
-  if (value === true) return true;
-  if (value === false) return false;
-
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["true", "pass", "passed", "yes", "1"].includes(normalized))
-      return true;
-    if (["false", "fail", "failed", "no", "0"].includes(normalized))
-      return false;
-  }
-
-  if (typeof value === "number") {
-    if (value === 1) return true;
-    if (value === 0) return false;
-  }
-
-  return false;
-}
-
 function pickFirstDefined(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null) return value;
@@ -306,7 +285,7 @@ function normalizePptxValidation(pptxValidation = {}) {
   };
 }
 
-export default function PPTDashboard({ data }) {
+export default function PPTDashboard({ data, viewMode = "high-level" }) {
   if (!data) return null;
 
   const {
@@ -386,11 +365,63 @@ export default function PPTDashboard({ data }) {
         duration={totalDuration}
         cost={estimated_cost_usd ?? 0}
         timestamp={timestamp_start}
+        runLabel={data.runLabel}
+        runId={data.run_id || data.runId}
       />
 
       <PipelineFlow agentType="ppt" data={data} />
 
-      <div className="metric-grid-4">
+      {viewMode === "high-level" ? (
+        <SectionBlock
+          eyebrow="Quality signals"
+          title="Presentation Quality Performance"
+          subtitle="Core dimensions of output quality, alignment, and completeness"
+          icon={Sparkles}
+        >
+          <div className="metric-grid-4" style={{ marginBottom: "var(--space-6)" }}>
+            <MetricCard
+              label="Overall Quality"
+              value={toNumber(quality?.overall_score, 0)}
+              icon={Star}
+              unit="/ 1.0"
+              deltaType={toNumber(quality?.overall_score, 0) >= 0.9 ? "up" : "flat"}
+              delta={toNumber(quality?.overall_score, 0) >= 0.9 ? "Excellent" : "Needs review"}
+            />
+            <MetricCard
+              label="Slide Completeness"
+              value={slideCoveragePercent}
+              icon={Presentation}
+              unit="%"
+              subtext={`${toNumber(slides?.successful, 0)} / ${toNumber(slides?.attempted, 0)} slides`}
+            />
+            <MetricCard
+              label="Architecture Alignment"
+              value={toNumber(quality?.architecture_alignment, 0)}
+              icon={GitBranch}
+              unit="/ 1.0"
+              subtext={`${toNumber(architecture_justification?.decisions_justified, 0)} / ${toNumber(architecture_justification?.decisions_identified, 0)} decisions justified`}
+            />
+            <MetricCard
+              label="Diagram Correctness"
+              value={toNumber(diagram?.correctness_score, 0)}
+              icon={ShieldCheck}
+              unit="/ 1.0"
+              subtext={`Health: ${pptxHealthPercent}%`}
+            />
+          </div>
+
+          <SectionGrid columns={2}>
+            <QualityScoresChart scores={qualityScores} />
+            <CoverageChart
+              covered={toNumber(slides?.successful, 0)}
+              total={toNumber(slides?.attempted, 1)}
+              label="Slide Generation Completeness"
+            />
+          </SectionGrid>
+        </SectionBlock>
+      ) : (
+        <>
+          <div className="metric-grid-4">
         <MetricCard
           label="Total Tokens"
           value={toNumber(llm_tokens?.total?.total_tokens, 0)}
@@ -962,6 +993,8 @@ export default function PPTDashboard({ data }) {
           />
         </SectionGrid>
       </SectionBlock>
+        </>
+      )}
 
       <ErrorBanner
         message={

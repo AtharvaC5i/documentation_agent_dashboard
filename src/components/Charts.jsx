@@ -5,7 +5,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -37,12 +36,6 @@ const AXIS_STYLE = {
 const GRID_STYLE = {
   stroke: "var(--color-divider)",
   strokeDasharray: "3 3",
-};
-
-const LEGEND_STYLE = {
-  fontSize: "11px",
-  fontFamily: "var(--font-body)",
-  color: "var(--color-text-muted)",
 };
 
 const AXIS_LABEL_STYLE = {

@@ -143,7 +143,7 @@ function ErrorBanner({ errors }) {
   );
 }
 
-export default function TechnicalDocDashboard({ data }) {
+export default function TechnicalDocDashboard({ data, viewMode = "high-level" }) {
   if (!data) return null;
 
   const {
@@ -179,12 +179,67 @@ export default function TechnicalDocDashboard({ data }) {
         duration={totalDuration}
         cost={llm_usage?.estimated_cost_usd ?? 0}
         timestamp={timestamp}
+        runLabel={data.runLabel}
+        runId={data.run_id || data.runId}
       />
 
       <PipelineFlow agentType="technical-document" data={data} />
 
-      <SectionBlock
-        eyebrow="Execution overview"
+      {viewMode === "high-level" ? (
+        <SectionBlock
+          eyebrow="Quality assessment"
+          title="Key Quality Performance"
+          description="High-level assessment of the agent's content quality, completeness, relevance, and output validity."
+        >
+          <div className="metric-grid-4" style={{ marginBottom: "var(--space-6)" }}>
+            <MetricCard
+              label="Avg Quality Score"
+              value={generation?.avg_quality_score ?? 0}
+              icon={Star}
+              unit="/ 1.0"
+              deltaType={(generation?.avg_quality_score ?? 0) >= 0.9 ? "up" : "flat"}
+              delta={(generation?.avg_quality_score ?? 0) >= 0.9 ? "Excellent" : "Needs review"}
+            />
+            <MetricCard
+              label="Codebase Coverage"
+              value={coverage?.overall_coverage_percent ?? 0}
+              icon={Code2}
+              unit="%"
+              subtext={`${coverage?.documented_total ?? 0} / ${coverage?.discovered_total ?? 0} entities`}
+            />
+            <MetricCard
+              label="Code Example Validity"
+              value={codeExamples?.validity_score_percent ?? 0}
+              icon={CheckCircle2}
+              unit="%"
+              subtext={`${codeExamples?.valid_examples ?? 0} / ${codeExamples?.total_examples ?? 0} valid`}
+            />
+            <MetricCard
+              label="Section Success Rate"
+              value={generation?.section_success_rate_percent ?? 0}
+              icon={Layers}
+              unit="%"
+              subtext={`${generation?.sections_succeeded ?? 0} / ${generation?.sections_attempted ?? 0} sections`}
+            />
+          </div>
+
+          <SectionGrid columns={2}>
+            <CoverageChart
+              covered={coverage?.documented_total ?? 0}
+              total={coverage?.discovered_total ?? 1}
+              label="Codebase Coverage (Completeness)"
+            />
+            <CoverageChart
+              covered={codeExamples?.valid_examples ?? 0}
+              total={codeExamples?.total_examples ?? 1}
+              label="Code Example Validity (Accuracy/Coverage)"
+            />
+          </SectionGrid>
+        </SectionBlock>
+      ) : (
+        <>
+          <SectionBlock
+            eyebrow="Execution overview"
         title="Technical documentation pipeline"
         description="Key generation metrics, completion quality, and end-to-end output health for the latest documentation run."
       >
@@ -665,6 +720,8 @@ export default function TechnicalDocDashboard({ data }) {
           </DetailPanel>
         </SectionGrid>
       </SectionBlock>
+        </>
+      )}
 
       <ErrorBanner errors={errors} />
     </div>

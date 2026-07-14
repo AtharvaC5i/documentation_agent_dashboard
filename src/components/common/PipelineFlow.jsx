@@ -9,7 +9,6 @@ import {
   FileCheck,
   Brain,
   Scale,
-  BadgeCheck,
   Zap,
 } from "lucide-react";
 
@@ -23,7 +22,6 @@ export default function PipelineFlow({ agentType, data }) {
       const selection = data.section_selection ?? {};
       const generation = data.generation ?? {};
       const assembly = data.assembly ?? {};
-      const quality = data.quality_metrics ?? {};
 
       return [
         {
@@ -81,7 +79,6 @@ export default function PipelineFlow({ agentType, data }) {
       const duration = data.duration ?? {};
       const slides = data.slides ?? {};
       const diagram = data.diagram ?? {};
-      const quality = data.quality ?? {};
       const pptxVal = data.pptx_validation ?? {};
 
       const hasDiagram = !!diagram.attempted;
@@ -209,7 +206,7 @@ export default function PipelineFlow({ agentType, data }) {
       </div>
 
       <div className="pipeline-track">
-        {steps.map((step, index) => {
+        {steps.map((step) => {
           const StepIcon = step.icon;
           return (
             <div key={step.id} className={`pipeline-step ${step.status}`}>

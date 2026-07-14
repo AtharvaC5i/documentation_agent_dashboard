@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import fs from "fs";
 import path from "path";
 
-const METRICS_BASE_PATH = "D:/documentation_agent_metrics_json";
+const METRICS_BASE_PATH = "C:/Programming and Coding/documentation_agent_dashboard/documentation_agent_json";
 
 const apiPlugin = {
   name: "api-plugin",

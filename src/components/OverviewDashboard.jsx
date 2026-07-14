@@ -14,6 +14,8 @@ import {
   X,
   ExternalLink,
   PanelTopOpen,
+  BookOpen,
+  FileCheck,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -32,27 +34,28 @@ import {
   getMonitoredAgents,
   getAgentConfig,
 } from "../services/dataService";
+import { ViewModeToggle } from "./MetricCard";
 
 const CHART_COLORS = {
-  primary: "#0f766e",
-  orange: "#c2410c",
-  blue: "#1d4ed8",
-  purple: "#7c3aed",
-  gold: "#b08900",
-  success: "#4d7c0f",
-  error: "#b42318",
-  neutral: "#d6d3d1",
-  softNeutral: "#ece7df",
+  primary: "var(--color-primary)",
+  orange: "var(--color-orange)",
+  blue: "var(--color-blue)",
+  purple: "var(--color-purple)",
+  gold: "var(--color-gold)",
+  success: "var(--color-success)",
+  error: "var(--color-error)",
+  neutral: "var(--color-surface-offset)",
+  softNeutral: "var(--color-surface-offset-2)",
 };
 
 const AXIS_STYLE = {
   fontSize: 11,
-  fill: "#6b7280",
+  fill: "var(--color-text-muted)",
   fontFamily: "var(--font-body)",
 };
 
 const GRID_STYLE = {
-  stroke: "#e7e2da",
+  stroke: "var(--color-border)",
   strokeDasharray: "3 3",
 };
 
@@ -126,10 +129,13 @@ function getStatusTone(status) {
 }
 
 function buildRunSearchText(run) {
+  const labelFriendly = run.runLabel ? run.runLabel.replace(/_/g, " ") : "";
   return [
     run.agentName,
     run.agent,
     run.runId,
+    run.runLabel,
+    labelFriendly,
     run.status,
     formatRelativeDate(run.latestTimestamp),
     formatDuration(run.durationSeconds),
@@ -290,8 +296,9 @@ function MetricCard({ title, value, subtitle, icon: Icon, tone = "default" }) {
   );
 }
 
-function AgentSummaryCard({ item }) {
+function AgentSummaryCard({ item, viewMode = "high-level" }) {
   const config = getAgentConfig(item.agentId);
+  const isHighLevel = viewMode === "high-level";
   const tone = getStatusTone(item.latestStatus);
 
   return (
@@ -320,14 +327,18 @@ function AgentSummaryCard({ item }) {
           <p className="metric-label">Success</p>
           <p className="metric-value">{formatPercent(item.successRate)}</p>
         </div>
-        <div className="agent-summary-stat">
-          <p className="metric-label">Avg duration</p>
-          <p className="metric-value">{formatDuration(item.avgDuration)}</p>
-        </div>
-        <div className="agent-summary-stat">
-          <p className="metric-label">Avg cost</p>
-          <p className="metric-value">{formatCurrency(item.avgCost, 4)}</p>
-        </div>
+        {!isHighLevel && (
+          <>
+            <div className="agent-summary-stat">
+              <p className="metric-label">Avg duration</p>
+              <p className="metric-value">{formatDuration(item.avgDuration)}</p>
+            </div>
+            <div className="agent-summary-stat">
+              <p className="metric-label">Avg cost</p>
+              <p className="metric-value">{formatCurrency(item.avgCost, 4)}</p>
+            </div>
+          </>
+        )}
         <div className="agent-summary-stat">
           <p className="metric-label">Avg quality</p>
           <p className="metric-value">
@@ -341,15 +352,17 @@ function AgentSummaryCard({ item }) {
           Last run: {formatRelativeDate(item.latestRunAt)}
         </span>
 
-        <span
-          className="agent-summary-footer-strong"
-          style={{
-            color: config?.color ?? "var(--color-text-muted)",
-          }}
-        >
-          {formatNumber(item.totalErrors)} errors ·{" "}
-          {formatNumber(item.totalRetries)} retries
-        </span>
+        {!isHighLevel && (
+          <span
+            className="agent-summary-footer-strong"
+            style={{
+              color: config?.color ?? "var(--color-text-muted)",
+            }}
+          >
+            {formatNumber(item.totalErrors)} errors ·{" "}
+            {formatNumber(item.totalRetries)} retries
+          </span>
+        )}
       </div>
     </div>
   );
@@ -533,6 +546,7 @@ function RecentRunsTable({ runs, limit }) {
         <thead>
           <tr>
             <th>Agent</th>
+            <th>Label</th>
             <th>Run ID</th>
             <th>Status</th>
             <th>Time</th>
@@ -547,16 +561,41 @@ function RecentRunsTable({ runs, limit }) {
 
             return (
               <tr key={`${run.agent}-${run.runId}`}>
-                <td>{run.agentName}</td>
-                <td className="monospace-cell">{run.runId}</td>
+                <td>
+                  <span style={{ fontWeight: 600, color: "var(--color-text)" }}>
+                    {run.agentName}
+                  </span>
+                </td>
+                <td>
+                  <span className="monospace-badge">
+                    {run.runLabel || "—"}
+                  </span>
+                </td>
+                <td className="monospace-cell" title={run.runId}>
+                  <span className="run-id-pill">
+                    {run.runId && run.runId.length > 8 ? `${run.runId.slice(0, 8)}...` : run.runId}
+                  </span>
+                </td>
                 <td>
                   <span
                     className="status-pill"
                     style={{
                       backgroundColor: tone.bg,
                       color: tone.color,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
                     }}
                   >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        backgroundColor: tone.color,
+                        display: "inline-block",
+                      }}
+                    />
                     {tone.label}
                   </span>
                 </td>
@@ -629,9 +668,11 @@ function RecentActivityModal({
 
   if (!open) return null;
 
-  const filteredRuns = runs.filter((run) =>
-    buildRunSearchText(run).includes(searchQuery.trim().toLowerCase()),
-  );
+  const searchTerms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredRuns = runs.filter((run) => {
+    const searchText = buildRunSearchText(run);
+    return searchTerms.every(term => searchText.includes(term));
+  });
 
   return (
     <div
@@ -735,13 +776,14 @@ function RecentActivityModal({
   );
 }
 
-export default function OverviewDashboard() {
+export default function OverviewDashboard({ viewMode = "high-level", onViewModeChange }) {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
+  const [activeTab, setActiveTab] = useState("performance");
   const activityTriggerRef = useRef(null);
 
   async function fetchOverview(showRefreshState = false) {
@@ -764,7 +806,17 @@ export default function OverviewDashboard() {
   }
 
   useEffect(() => {
-    fetchOverview(false);
+    let active = true;
+    const init = async () => {
+      await Promise.resolve();
+      if (active) {
+        fetchOverview(false);
+      }
+    };
+    init();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const monitoredAgents = useMemo(() => getMonitoredAgents(), []);
@@ -774,83 +826,6 @@ export default function OverviewDashboard() {
   const statusDistribution = overview?.statusDistribution ?? [];
   const health = overview?.health ?? {};
   const recentRuns = overview?.recentRuns ?? [];
-
-  const anomalies = useMemo(() => {
-    if (!recentRuns.length) return [];
-    
-    const list = [];
-    
-    // 1. Check for failed runs in the most recent execution
-    const latestRunsByAgent = {};
-    recentRuns.forEach(run => {
-      if (!latestRunsByAgent[run.agent]) {
-        latestRunsByAgent[run.agent] = run;
-      }
-    });
-    
-    Object.values(latestRunsByAgent).forEach(run => {
-      if (run.status === "failed") {
-        list.push({
-          id: `fail-${run.agent}-${run.runId}`,
-          type: "critical",
-          message: `The latest run for ${run.agentName} (ID: ${run.runId}) failed.`,
-          action: "Inspect logs and retry the pipeline."
-        });
-      }
-    });
-
-    // 2. Check for high retry rates (retries > 2)
-    recentRuns.slice(0, 10).forEach(run => {
-      if (run.retries > 2) {
-        list.push({
-          id: `retry-${run.runId}`,
-          type: "warning",
-          message: `High retry counts detected: ${run.agentName} run ${run.runId} completed with ${run.retries} retries.`,
-          action: "Indicates potential model instability or rate limiting."
-        });
-      }
-    });
-
-    // 3. Check for latency outliers (duration > average * 1.5 and > 180s)
-    const avgDuration = totals?.avgDuration ?? 120;
-    recentRuns.slice(0, 5).forEach(run => {
-      if (run.durationSeconds > avgDuration * 1.5 && run.durationSeconds > 180) {
-        list.push({
-          id: `latency-${run.runId}`,
-          type: "info",
-          message: `Pipeline Latency Anomaly: Run ${run.runId} took ${formatDuration(run.durationSeconds)} (1.5x higher than average of ${formatDuration(avgDuration)}).`,
-          action: "Optimize vector search index size or check network latency."
-        });
-      }
-    });
-
-    // 4. Check for cost outliers (cost > average * 1.5 and > $0.03)
-    const avgCost = totals?.avgCost ?? 0.02;
-    recentRuns.slice(0, 5).forEach(run => {
-      if (run.estimatedCostUsd > avgCost * 1.5 && run.estimatedCostUsd > 0.03) {
-        list.push({
-          id: `cost-${run.runId}`,
-          type: "info",
-          message: `Billing Peak: Run ${run.runId} incurred $${run.estimatedCostUsd.toFixed(4)} in token costs.`,
-          action: "Review section prompt count or limit input files."
-        });
-      }
-    });
-
-    // 5. Check for rejected output
-    recentRuns.slice(0, 10).forEach(run => {
-      if (run.acceptanceStatus === "rejected") {
-        list.push({
-          id: `reject-${run.runId}`,
-          type: "warning",
-          message: `Deliverable Rejected: Run ${run.runId} of ${run.agentName} was marked as rejected.`,
-          action: "Re-generate requirements and review user feedback."
-        });
-      }
-    });
-
-    return list;
-  }, [recentRuns, totals]);
 
   function openActivityModal() {
     setIsActivityModalOpen(true);
@@ -870,8 +845,8 @@ export default function OverviewDashboard() {
           gap: "var(--space-6)",
         }}
       >
-        <div className="metric-grid-5">
-          {[...Array(5)].map((_, i) => (
+        <div className="metric-grid-4">
+          {[...Array(8)].map((_, i) => (
             <div key={i} className="skeleton skeleton-card" />
           ))}
         </div>
@@ -924,97 +899,38 @@ export default function OverviewDashboard() {
               </p>
             </div>
 
-            <button
-              className="btn btn-secondary btn-icon polished-refresh-btn"
-              onClick={() => fetchOverview(true)}
-              disabled={refreshing}
-              aria-label="Refresh overview"
-              title="Refresh overview"
-            >
-              <RefreshCw
-                size={15}
-                style={{
-                  animation: refreshing ? "spin 1s linear infinite" : "none",
-                }}
-              />
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+              <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+              <button
+                className="btn btn-secondary btn-icon polished-refresh-btn"
+                onClick={() => fetchOverview(true)}
+                disabled={refreshing}
+                aria-label="Refresh overview"
+                title="Refresh overview"
+              >
+                <RefreshCw
+                  size={15}
+                  style={{
+                    animation: refreshing ? "spin 1s linear infinite" : "none",
+                  }}
+                />
+              </button>
+            </div>
           </div>
         </section>
 
         {/* Anomaly & Run Health Insights Banner */}
-        <section className={`panel ${anomalies.length > 0 ? "anomaly-banner-active" : "anomaly-banner-nominal"}`} style={{
-          padding: "var(--space-5) var(--space-6)",
-          borderRadius: "var(--radius-lg)",
-          border: anomalies.length > 0 ? "1px solid color-mix(in srgb, var(--color-warning) 30%, var(--color-border))" : "1px solid var(--color-divider)",
-          background: anomalies.length > 0 ? "color-mix(in srgb, var(--color-warning-highlight) 30%, var(--color-surface))" : "color-mix(in srgb, var(--color-success-highlight) 20%, var(--color-surface))",
-          boxShadow: "var(--glass-shadow), var(--shadow-sm)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--space-3)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              backgroundColor: anomalies.length > 0 ? "var(--color-warning-highlight)" : "var(--color-success-highlight)",
-              color: anomalies.length > 0 ? "var(--color-warning)" : "var(--color-success)",
-            }}>
-              {anomalies.length > 0 ? <AlertTriangle size={15} strokeWidth={2.2} /> : <BadgeCheck size={15} strokeWidth={2.2} />}
-            </span>
-            <div>
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--color-text)" }}>
-                {anomalies.length > 0 ? `Operational Anomaly Checker (${anomalies.length} alerts)` : "All Systems Nominal"}
-              </p>
-              <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
-                {anomalies.length > 0 ? "Review the flagged pipeline exceptions and performance outliers below." : "All recent pipeline executions met latency, cost, and reliability thresholds."}
-              </p>
-            </div>
-          </div>
+        
 
-          {anomalies.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-1)" }}>
-              {anomalies.map((alert) => (
-                <div key={alert.id} style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 1fr",
-                  gap: "var(--space-3)",
-                  padding: "var(--space-3)",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--color-divider)",
-                  background: "var(--color-surface)",
-                  alignItems: "start",
-                }}>
-                  <span style={{
-                    marginTop: "2px",
-                    color: alert.type === "critical" ? "var(--color-error)" : alert.type === "warning" ? "var(--color-warning)" : "var(--color-blue)",
-                  }}>
-                    {alert.type === "critical" ? <ShieldAlert size={14} /> : <AlertTriangle size={14} />}
-                  </span>
-                  <div>
-                    <p style={{ margin: 0, fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--color-text)" }}>
-                      {alert.message}
-                    </p>
-                    <p style={{ margin: "2px 0 0", fontSize: "10px", color: "var(--color-text-muted)" }}>
-                      <strong>Suggested Action:</strong> {alert.action}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className={viewMode === "high-level" ? "metric-grid-3" : "metric-grid-4"}>
+          {viewMode !== "high-level" && (
+            <MetricCard
+              title="Total Runs"
+              value={formatNumber(totals?.totalRuns)}
+              subtitle={`${formatNumber(monitoredAgents.length)} monitored agents`}
+              icon={Bot}
+            />
           )}
-        </section>
-
-        <div className="metric-grid-5">
-          <MetricCard
-            title="Total Runs"
-            value={formatNumber(totals?.totalRuns)}
-            subtitle={`${formatNumber(monitoredAgents.length)} monitored agents`}
-            icon={Bot}
-          />
           <MetricCard
             title="Success Rate"
             value={formatPercent(totals?.successRate)}
@@ -1022,18 +938,28 @@ export default function OverviewDashboard() {
             icon={BadgeCheck}
             tone={(totals?.successRate ?? 0) >= 90 ? "success" : "warning"}
           />
-          <MetricCard
-            title="Avg Runtime"
-            value={formatDuration(totals?.avgDuration)}
-            subtitle="Average end-to-end execution time"
-            icon={Clock3}
-          />
-          <MetricCard
-            title="Avg Cost / Run"
-            value={formatCurrency(totals?.avgCost, 4)}
-            subtitle={`${formatNumber(totals?.totalTokens)} total tokens`}
-            icon={DollarSign}
-          />
+          {viewMode !== "high-level" && (
+            <>
+              <MetricCard
+                title="Avg Runtime"
+                value={formatDuration(totals?.avgDuration)}
+                subtitle="Average end-to-end execution time"
+                icon={Clock3}
+              />
+              <MetricCard
+                title="Avg Cost / Run"
+                value={formatCurrency(totals?.avgCost, 4)}
+                subtitle="Mean estimated run cost"
+                icon={DollarSign}
+              />
+              <MetricCard
+                title="Avg Token Usage"
+                value={formatNumber(totals?.avgTokens)}
+                subtitle={`Total: ${formatNumber(totals?.totalTokens)} tokens`}
+                icon={BookOpen}
+              />
+            </>
+          )}
           <MetricCard
             title="Avg Quality"
             value={
@@ -1041,15 +967,35 @@ export default function OverviewDashboard() {
                 ? formatPercent((totals?.avgQuality ?? 0) * 100)
                 : "—"
             }
-            subtitle={
-              (totals?.avgValidationHealth ?? 0) > 0
-                ? `Validation health ${formatPercent((totals?.avgValidationHealth ?? 0) * 100)}`
-                : "Validation data varies by agent"
-            }
+            subtitle="Consolidated quality scores"
             icon={Sparkles}
             tone={(totals?.avgQuality ?? 0) >= 0.9 ? "success" : "warning"}
           />
+          {viewMode !== "high-level" && (
+            <MetricCard
+              title="Avg Review Cycles"
+              value={
+                (totals?.avgReviewCycles ?? 0) > 0
+                  ? `${Number(totals?.avgReviewCycles).toFixed(2)} cycles`
+                  : "0 cycles"
+              }
+              subtitle="Average correction loops"
+              icon={RefreshCw}
+            />
+          )}
+          <MetricCard
+            title="Avg Validation Health"
+            value={
+              (totals?.avgValidationHealth ?? 0) > 0
+                ? formatPercent((totals?.avgValidationHealth ?? 0) * 100)
+                : "—"
+            }
+            subtitle="Output format health"
+            icon={FileCheck}
+            tone={(totals?.avgValidationHealth ?? 0) >= 0.85 ? "success" : "warning"}
+          />
         </div>
+
 
         <Panel
           title="Agent Summaries"
@@ -1057,72 +1003,211 @@ export default function OverviewDashboard() {
         >
           <div className="overview-agent-grid">
             {agentSummaries.map((item) => (
-              <AgentSummaryCard key={item.agentId} item={item} />
+              <AgentSummaryCard key={item.agentId} item={item} viewMode={viewMode} />
             ))}
           </div>
         </Panel>
 
-        <div className="overview-chart-split">
-          <ComparisonBarChart
-            title="Success Rate by Agent"
-            subtitle="Average execution reliability across monitored runs"
-            data={comparison.successRate}
-            color={CHART_COLORS.primary}
-            formatter={(value) => `${value}%`}
-          />
+        {viewMode === "high-level" ? (
+          <div style={{ marginTop: "var(--space-6)" }}>
+            <div className="overview-chart-grid" style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "var(--space-6)"
+            }}>
+              <ComparisonBarChart
+                title="Average Quality Score"
+                subtitle="Quality score normalized as percentage"
+                data={comparison.avgQuality}
+                color={CHART_COLORS.success}
+                formatter={(value) => `${value}%`}
+              />
+              <ComparisonBarChart
+                title="Average Validation Health"
+                subtitle="Mean output format validation success"
+                data={comparison.validationHealth}
+                color={CHART_COLORS.primary}
+                formatter={(value) => `${value}%`}
+              />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Tabbed Navigation for Categorized Comparison Charts */}
+            <div className="tab-navigation" style={{
+              display: "flex",
+              gap: "var(--space-2)",
+              borderBottom: "1px solid var(--color-border)",
+              paddingBottom: "var(--space-2)",
+              marginBlock: "var(--space-4) var(--space-2)"
+            }}>
+              <button
+                className={`tab-btn ${activeTab === "performance" ? "active" : ""}`}
+                onClick={() => setActiveTab("performance")}
+                style={{
+                  padding: "var(--space-2) var(--space-4)",
+                  borderRadius: "var(--radius-md)",
+                  border: "none",
+                  background: activeTab === "performance" ? "var(--color-primary-highlight)" : "transparent",
+                  color: activeTab === "performance" ? "var(--color-primary)" : "var(--color-text-muted)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all var(--transition-interactive)"
+                }}
+              >
+                Pipeline Performance
+              </button>
+              <button
+                className={`tab-btn ${activeTab === "efficiency" ? "active" : ""}`}
+                onClick={() => setActiveTab("efficiency")}
+                style={{
+                  padding: "var(--space-2) var(--space-4)",
+                  borderRadius: "var(--radius-md)",
+                  border: "none",
+                  background: activeTab === "efficiency" ? "var(--color-primary-highlight)" : "transparent",
+                  color: activeTab === "efficiency" ? "var(--color-primary)" : "var(--color-text-muted)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all var(--transition-interactive)"
+                }}
+              >
+                Cost & Resource Efficiency
+              </button>
+              <button
+                className={`tab-btn ${activeTab === "quality" ? "active" : ""}`}
+                onClick={() => setActiveTab("quality")}
+                style={{
+                  padding: "var(--space-2) var(--space-4)",
+                  borderRadius: "var(--radius-md)",
+                  border: "none",
+                  background: activeTab === "quality" ? "var(--color-primary-highlight)" : "transparent",
+                  color: activeTab === "quality" ? "var(--color-primary)" : "var(--color-text-muted)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all var(--transition-interactive)"
+                }}
+              >
+                Deliverable Quality
+              </button>
+            </div>
 
-          <StatusDistributionChart data={statusDistribution} />
-        </div>
+            <div className="tab-content">
+              {activeTab === "performance" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+                  <div className="overview-chart-split">
+                    <ComparisonBarChart
+                      title="Success Rate by Agent"
+                      subtitle="Average execution reliability across monitored runs"
+                      data={comparison.successRate}
+                      color={CHART_COLORS.primary}
+                      formatter={(value) => `${value}%`}
+                    />
+                    <StatusDistributionChart data={statusDistribution} />
+                  </div>
+                  <div className="overview-chart-grid" style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                    gap: "var(--space-6)"
+                  }}>
+                    <ComparisonBarChart
+                      title="Average Runtime"
+                      subtitle="Mean end-to-end duration by agent"
+                      data={comparison.avgDuration}
+                      color={CHART_COLORS.orange}
+                      formatter={(value) => `${Number(value).toFixed(1)}s`}
+                    />
+                    <ComparisonBarChart
+                      title="Run Volume by Agent"
+                      subtitle="Total monitored runs recorded"
+                      data={comparison.runVolume}
+                      color={CHART_COLORS.primary}
+                      formatter={(value) => `${value}`}
+                    />
+                  </div>
+                </div>
+              )}
 
-        <div className="overview-chart-grid">
-          <ComparisonBarChart
-            title="Average Runtime"
-            subtitle="Mean end-to-end duration by agent"
-            data={comparison.avgDuration}
-            color={CHART_COLORS.orange}
-            formatter={(value) => `${Number(value).toFixed(1)}s`}
-          />
-          <ComparisonBarChart
-            title="Average Cost"
-            subtitle="Mean estimated run cost by agent"
-            data={comparison.avgCost}
-            color={CHART_COLORS.blue}
-            formatter={(value) => `$${Number(value).toFixed(4)}`}
-          />
-          <ComparisonBarChart
-            title="Average Quality"
-            subtitle="Quality score normalized as percentage"
-            data={comparison.avgQuality}
-            color={CHART_COLORS.success}
-            formatter={(value) => `${value}%`}
-          />
-        </div>
+              {activeTab === "efficiency" && (
+                <div className="overview-chart-grid" style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                  gap: "var(--space-6)"
+                }}>
+                  <ComparisonBarChart
+                    title="Average Cost"
+                    subtitle="Mean estimated run cost by agent"
+                    data={comparison.avgCost}
+                    color={CHART_COLORS.blue}
+                    formatter={(value) => `$${Number(value).toFixed(4)}`}
+                  />
+                  <ComparisonBarChart
+                    title="Average Token Usage"
+                    subtitle="Mean total tokens consumed by agent"
+                    data={comparison.avgTokens}
+                    color={CHART_COLORS.purple}
+                    formatter={(value) => formatNumber(value)}
+                  />
+                  <ComparisonBarChart
+                    title="Average Review Cycles"
+                    subtitle="Mean correction loops/regenerations by agent"
+                    data={comparison.avgReviewCycles}
+                    color={CHART_COLORS.gold}
+                    formatter={(value) => `${Number(value).toFixed(2)}`}
+                  />
+                </div>
+              )}
 
-        <Panel
-          title="Operational Health"
-          subtitle="Failure, retry, and review signals that need attention"
-        >
-          <HealthStrip health={health} />
-        </Panel>
+              {activeTab === "quality" && (
+                <div className="overview-chart-grid" style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                  gap: "var(--space-6)"
+                }}>
+                  <ComparisonBarChart
+                    title="Average Quality Score"
+                    subtitle="Quality score normalized as percentage"
+                    data={comparison.avgQuality}
+                    color={CHART_COLORS.success}
+                    formatter={(value) => `${value}%`}
+                  />
+                  <ComparisonBarChart
+                    title="Average Validation Health"
+                    subtitle="Mean output format validation success"
+                    data={comparison.validationHealth}
+                    color={CHART_COLORS.primary}
+                    formatter={(value) => `${value}%`}
+                  />
+                </div>
+              )}
+            </div>
 
-        <Panel
-          title="Recent Activity"
-          subtitle="Latest runs across all monitored agents"
-          action={
-            <button
-              ref={activityTriggerRef}
-              className="btn btn-secondary recent-activity-open-btn"
-              onClick={openActivityModal}
-              aria-label="Open recent activity modal"
-              title="View all recent activity"
+            <Panel
+              title="Operational Health"
+              subtitle="Failure, retry, and review signals that need attention"
             >
-              <ExternalLink size={15} />
-              <span>Open activity explorer</span>
-            </button>
-          }
-        >
-          <RecentRunsTable runs={recentRuns} limit={5} />
-        </Panel>
+              <HealthStrip health={health} />
+            </Panel>
+
+            <Panel
+              title="Recent Activity"
+              subtitle="Latest runs across all monitored agents"
+              action={
+                <button
+                  ref={activityTriggerRef}
+                  className="btn btn-secondary recent-activity-open-btn"
+                  onClick={openActivityModal}
+                  aria-label="Open recent activity modal"
+                  title="View all recent activity"
+                >
+                  <ExternalLink size={15} />
+                  <span>Open activity explorer</span>
+                </button>
+              }
+            >
+              <RecentRunsTable runs={recentRuns} limit={5} />
+            </Panel>
+          </>
+        )}
 
         <style>{`
           .eyebrow {
@@ -1203,9 +1288,9 @@ export default function OverviewDashboard() {
             line-height: 1.55;
           }
 
-          .metric-grid-5 {
+          .metric-grid-4 {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: var(--space-4);
             align-items: stretch;
           }
@@ -1502,6 +1587,38 @@ export default function OverviewDashboard() {
             font-size: 12px;
           }
 
+          .monospace-badge {
+            display: inline-block;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: var(--radius-md);
+            background-color: var(--color-primary-highlight);
+            color: var(--color-primary);
+            border: 1px solid color-mix(in srgb, var(--color-primary) 12%, transparent);
+            letter-spacing: -0.01em;
+          }
+
+          .run-id-pill {
+            display: inline-block;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: var(--color-text-muted);
+            background-color: var(--color-surface-offset);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: 2px 6px;
+            transition: all var(--transition-interactive);
+            cursor: help;
+          }
+          
+          .run-id-pill:hover {
+            color: var(--color-text);
+            background-color: color-mix(in srgb, var(--color-border) 40%, var(--color-surface));
+            border-color: var(--color-text-muted);
+          }
+
           .recent-activity-open-btn {
             display: inline-flex;
             align-items: center;
@@ -1793,7 +1910,7 @@ export default function OverviewDashboard() {
           }
 
           @media (max-width: 900px) {
-            .metric-grid-5 {
+            .metric-grid-4 {
               grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             }
 
@@ -1817,7 +1934,7 @@ export default function OverviewDashboard() {
           }
 
           @media (max-width: 640px) {
-            .metric-grid-5,
+            .metric-grid-4,
             .overview-health-grid {
               grid-template-columns: 1fr !important;
             }

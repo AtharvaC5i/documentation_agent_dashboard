@@ -5,7 +5,8 @@ import OverviewDashboard from "./OverviewDashboard";
 import TechnicalDocDashboard from "./TechnicalDocDashboard";
 import PPTDashboard from "./PPTDashboard";
 import BRDDashboard from "./BRDDashboard";
-import { loadRuns, loadMetrics, getAllAgents } from "../services/dataService";
+import { ViewModeToggle } from "./MetricCard";
+import { getAllAgents, loadAgentRunsDetailed } from "../services/dataService";
 
 function RunSelectorSkeleton() {
   return (
@@ -137,37 +138,40 @@ function ErrorState({ message }) {
   );
 }
 
-function formatRunLabel(r) {
-  if (!r) return "";
-  const clean = r.replace(".json", "");
-  
-  try {
-    if (/^\d{4}-\d{2}-\d{2}/.test(clean)) {
-      const parts = clean.split("T");
-      if (parts.length === 2) {
-        const timePart = parts[1].replace(/_/g, ":");
-        const restored = `${parts[0]}T${timePart}`;
-        const d = new Date(restored);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          });
-        }
-      }
-    }
-  } catch (e) {
-    // fallback
-  }
+function getRunTimestamp(run) {
+  if (!run) return "";
+  const rawDate = run.timestamp_start || run.timestamp || run.recorded_at || run.timing?.run_started_at;
+  if (!rawDate) return "N/A";
 
-  return clean.replace(/_/g, " ").replace(/-/g, "-");
+  const d = new Date(rawDate);
+  if (isNaN(d.getTime())) return rawDate;
+
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
+function getRunStatus(run) {
+  if (!run) return "unknown";
+  if (run.status) return run.status;
+  if (typeof run.run_success === "boolean") {
+    return run.run_success ? "success" : "failed";
+  }
+  return "unknown";
+}
+
+function getStatusDotColor(status) {
+  if (status === "success") return "var(--color-success)";
+  if (status === "failed") return "var(--color-error)";
+  if (status === "pending") return "var(--color-warning)";
+  return "var(--color-text-muted)";
+}
+
+function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading, viewMode, onViewModeChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -231,18 +235,21 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
       <div
         style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}
       >
+        <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+
         <span
           style={{
             fontSize: "var(--text-sm)",
             fontWeight: 600,
             color: "var(--color-text-muted)",
             whiteSpace: "nowrap",
+            marginLeft: "var(--space-2)",
           }}
         >
           Select run
         </span>
 
-        <div ref={dropdownRef} style={{ position: "relative", width: "280px" }}>
+        <div ref={dropdownRef} style={{ position: "relative", width: "320px" }}>
           <button
             type="button"
             className="select-field"
@@ -257,18 +264,20 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
               cursor: "pointer",
               textAlign: "left",
               backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
+              border: isOpen ? "1px solid var(--color-primary)" : "1px solid var(--color-border)",
               borderRadius: "var(--radius-md)",
               fontSize: "var(--text-sm)",
               height: "2.625rem",
               width: "100%",
               outline: "none",
+              boxShadow: isOpen ? "0 0 0 3px var(--color-primary-highlight)" : "var(--shadow-sm)",
+              transition: "all var(--transition-interactive)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", minWidth: 0 }}>
               <Clock size={14} style={{ flexShrink: 0, color: "var(--color-text-muted)" }} />
-              <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", fontWeight: 500 }}>
-                {formatRunLabel(selectedRun)}
+              <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", fontWeight: 600 }}>
+                {selectedRun ? `${selectedRun.runLabel} (${getRunTimestamp(selectedRun)})` : "Select run..."}
               </span>
             </div>
             <ChevronDown
@@ -291,10 +300,12 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
                 left: 0,
                 right: 0,
                 marginTop: "var(--space-2)",
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-surface-glass)",
+                backdropFilter: "var(--glass-blur)",
+                WebkitBackdropFilter: "var(--glass-blur)",
+                border: "1px solid var(--glass-border)",
                 borderRadius: "var(--radius-md)",
-                boxShadow: "var(--shadow-lg)",
+                boxShadow: "var(--shadow-lg), 0 10px 30px -10px rgba(0, 0, 0, 0.08)",
                 maxHeight: "300px",
                 overflowY: "auto",
                 zIndex: 100,
@@ -304,10 +315,12 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
               role="listbox"
             >
               {runs.map((r, idx) => {
-                const isSelected = r === selectedRun;
+                const isSelected = r.run_id === selectedRun?.run_id;
+                const status = getRunStatus(r);
+                const dotColor = getStatusDotColor(status);
                 return (
                   <button
-                    key={r}
+                    key={r.run_id || r.runId || idx}
                     type="button"
                     onClick={() => {
                       onRunChange(r);
@@ -324,8 +337,8 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
                       padding: "var(--space-2) var(--space-3)",
                       border: "none",
                       borderRadius: "var(--radius-sm)",
-                      backgroundColor: isSelected 
-                        ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))"
+                      backgroundColor: isSelected
+                        ? "var(--color-primary-highlight)"
                         : "transparent",
                       color: isSelected ? "var(--color-primary)" : "var(--color-text)",
                       cursor: "pointer",
@@ -336,36 +349,36 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", minWidth: 0 }}>
-                      <span style={{ 
-                        width: "6px", 
-                        height: "6px", 
-                        borderRadius: "50%", 
-                        backgroundColor: isSelected ? "var(--color-primary)" : "transparent",
+                      <span style={{
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        backgroundColor: dotColor,
                         flexShrink: 0
                       }} />
-                      <span style={{ 
-                        textOverflow: "ellipsis", 
-                        overflow: "hidden", 
+                      <span style={{
+                        textOverflow: "ellipsis",
+                        overflow: "hidden",
                         whiteSpace: "nowrap",
-                        fontWeight: isSelected ? "600" : "400"
+                        fontWeight: isSelected ? "600" : "500"
                       }}>
-                        {formatRunLabel(r)}
+                        {r.runLabel} <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>— {getRunTimestamp(r)}</span>
                       </span>
                     </div>
-                    
+
                     <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0 }}>
                       {idx === 0 && (
-                        <span 
+                        <span
                           style={{
                             fontSize: "9px",
                             fontWeight: 700,
                             padding: "2px 6px",
                             borderRadius: "var(--radius-full)",
-                            backgroundColor: isSelected 
-                              ? "var(--color-primary)" 
+                            backgroundColor: isSelected
+                              ? "var(--color-primary)"
                               : "var(--color-primary-highlight)",
-                            color: isSelected 
-                              ? "var(--color-text-inverse)" 
+                            color: isSelected
+                              ? "var(--color-text-inverse)"
                               : "var(--color-primary)",
                             letterSpacing: "0.05em",
                           }}
@@ -423,27 +436,21 @@ function RunSelector({ runs, selectedRun, onRunChange, onRefresh, loading }) {
 export default function Dashboard() {
   const [activeAgent, setActiveAgent] = useState("overview");
   const [runs, setRuns] = useState([]);
-  const [selectedRun, setSelectedRun] = useState("");
-  const [data, setData] = useState(null);
+  const [selectedRun, setSelectedRun] = useState(null);
   const [loading, setLoading] = useState(false);
   const [runsLoading, setRunsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState("high-level");
 
   const agents = useMemo(() => getAllAgents(), []);
   const isOverview = activeAgent === "overview";
   const requiresRunSelection = !isOverview;
 
-  async function fetchRunMetrics(agentType, runFile) {
-    if (!agentType || !runFile) return null;
-    return loadMetrics(agentType, runFile);
-  }
-
   useEffect(() => {
     async function fetchRunsForAgent() {
       if (!requiresRunSelection) {
         setRuns([]);
-        setSelectedRun("");
-        setData(null);
+        setSelectedRun(null);
         setError(null);
         setRunsLoading(false);
         setLoading(false);
@@ -452,18 +459,15 @@ export default function Dashboard() {
 
       setRunsLoading(true);
       setRuns([]);
-      setSelectedRun("");
-      setData(null);
+      setSelectedRun(null);
       setError(null);
 
       try {
-        const agentRuns = await loadRuns(activeAgent);
-        const sortedRuns = [...agentRuns].sort((a, b) => b.localeCompare(a));
+        const detailedRuns = await loadAgentRunsDetailed(activeAgent);
+        setRuns(detailedRuns);
 
-        setRuns(sortedRuns);
-
-        if (sortedRuns.length > 0) {
-          setSelectedRun(sortedRuns[0]);
+        if (detailedRuns.length > 0) {
+          setSelectedRun(detailedRuns[0]);
         } else {
           setError(
             `No runs available for ${getAllAgents().find((a) => a.id === activeAgent)?.name ?? activeAgent}.`,
@@ -479,38 +483,6 @@ export default function Dashboard() {
     fetchRunsForAgent();
   }, [activeAgent, requiresRunSelection]);
 
-  useEffect(() => {
-    async function fetchSelectedRunData() {
-      if (!requiresRunSelection) {
-        setData(null);
-        return;
-      }
-
-      if (!selectedRun) return;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const metricsData = await fetchRunMetrics(activeAgent, selectedRun);
-
-        if (metricsData) {
-          setData(metricsData);
-        } else {
-          setData(null);
-          setError(`No data available for ${selectedRun}`);
-        }
-      } catch (err) {
-        setData(null);
-        setError(`Failed to load data: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchSelectedRunData();
-  }, [activeAgent, selectedRun, requiresRunSelection]);
-
   const handleRefresh = async () => {
     if (!requiresRunSelection || !selectedRun) return;
 
@@ -518,16 +490,13 @@ export default function Dashboard() {
     setError(null);
 
     try {
-      const metricsData = await fetchRunMetrics(activeAgent, selectedRun);
-
-      if (metricsData) {
-        setData(metricsData);
-      } else {
-        setData(null);
-        setError(`No data available for ${selectedRun}`);
+      const detailedRuns = await loadAgentRunsDetailed(activeAgent);
+      setRuns(detailedRuns);
+      if (detailedRuns.length > 0) {
+        const matched = detailedRuns.find((r) => r.filename === selectedRun.filename) || detailedRuns[0];
+        setSelectedRun(matched);
       }
     } catch (err) {
-      setData(null);
       setError(`Failed to load data: ${err.message}`);
     } finally {
       setLoading(false);
@@ -536,7 +505,7 @@ export default function Dashboard() {
 
   function renderContent() {
     if (isOverview) {
-      return <OverviewDashboard />;
+      return <OverviewDashboard viewMode={viewMode} onViewModeChange={setViewMode} />;
     }
 
     if (runsLoading || loading) {
@@ -547,7 +516,7 @@ export default function Dashboard() {
       return <ErrorState message={error} />;
     }
 
-    if (!data) {
+    if (!selectedRun) {
       return (
         <EmptyState
           title="No dashboard data yet"
@@ -557,15 +526,15 @@ export default function Dashboard() {
     }
 
     if (activeAgent === "technical-document") {
-      return <TechnicalDocDashboard data={data} key={selectedRun} />;
+      return <TechnicalDocDashboard data={selectedRun} key={selectedRun.run_id || selectedRun.runId} viewMode={viewMode} />;
     }
 
     if (activeAgent === "ppt") {
-      return <PPTDashboard data={data} key={selectedRun} />;
+      return <PPTDashboard data={selectedRun} key={selectedRun.run_id || selectedRun.runId} viewMode={viewMode} />;
     }
 
     if (activeAgent === "brd") {
-      return <BRDDashboard data={data} key={selectedRun} />;
+      return <BRDDashboard data={selectedRun} key={selectedRun.run_id || selectedRun.runId} viewMode={viewMode} />;
     }
 
     return null;
@@ -590,6 +559,8 @@ export default function Dashboard() {
               onRunChange={setSelectedRun}
               onRefresh={handleRefresh}
               loading={loading}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
             />
           ) : null)}
 

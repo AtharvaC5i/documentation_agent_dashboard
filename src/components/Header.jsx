@@ -24,7 +24,7 @@ function SystemStatusPill() {
         alignItems: "center",
         gap: "var(--space-2)",
         backgroundColor: "var(--color-success-highlight)",
-        border: "1px solid rgba(77, 124, 15, 0.18)",
+        border: "1px solid color-mix(in srgb, var(--color-success) 16%, transparent)",
         borderRadius: "var(--radius-full)",
         padding: "0.5rem 0.875rem",
         whiteSpace: "nowrap",
@@ -87,9 +87,10 @@ function BrandBlock() {
     >
       <p
         style={{
-          fontSize: "1.375rem",
-          fontWeight: 700,
-          letterSpacing: "-0.03em",
+          fontFamily: "var(--font-display)",
+          fontSize: "1.25rem",
+          fontWeight: 800,
+          letterSpacing: "-0.035em",
           color: "var(--color-text)",
           lineHeight: 1.1,
         }}
@@ -308,9 +309,13 @@ export function Header({ agents, activeAgent, onAgentChange }) {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "var(--space-1)",
+              gap: "4px",
               minWidth: 0,
               flexWrap: "wrap",
+              backgroundColor: "var(--color-surface-offset)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "calc(var(--radius-md) + 4px)",
+              padding: "4px",
             }}
           >
             {agents.map((agent) => (
@@ -346,29 +351,27 @@ export function Header({ agents, activeAgent, onAgentChange }) {
           display: inline-flex;
           align-items: center;
           gap: var(--space-2);
-          min-height: 2.5rem;
-          padding: 0.55rem 0.9rem;
-          border: none;
+          min-height: 2.25rem;
+          padding: 0.45rem 0.85rem;
+          border: 1px solid transparent;
           border-radius: var(--radius-md);
           background: transparent;
           color: var(--color-text-muted);
           font-size: var(--text-sm);
           font-weight: 500;
           white-space: nowrap;
-          transition:
-            color var(--transition-interactive),
-            background-color var(--transition-interactive),
-            box-shadow var(--transition-interactive);
+          transition: all var(--transition-interactive);
         }
 
         .header-tab:hover {
-          color: var(--color-text);
-          background-color: var(--color-surface-offset);
+          color: var(--color-primary);
+          background-color: var(--color-surface);
         }
 
         .header-tab.active {
           color: var(--color-primary);
-          background-color: var(--color-primary-highlight);
+          background-color: var(--color-surface);
+          border-color: var(--color-border);
           box-shadow: var(--shadow-sm);
           font-weight: 600;
         }

@@ -17,24 +17,25 @@
    ============================================================ */
 
 @layer base {
+
   :root,
   [data-theme="light"] {
     /* --- Font Families --- */
     --font-display:
-      "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Cabinet Grotesk", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
       "Segoe UI", sans-serif;
 
     --font-body:
-      "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "General Sans", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
       "Segoe UI", sans-serif;
 
     /* --- Dashboard Type Scale --- */
-    --text-xs: 0.75rem; /* 12px */
-    --text-sm: 0.875rem; /* 14px */
-    --text-base: 0.9375rem; /* 15px */
-    --text-lg: 1.125rem; /* 18px */
-    --text-xl: 1.5rem; /* 24px */
-    --text-2xl: 2rem; /* 32px */
+    --text-xs: 0.75rem;     /* 12px */
+    --text-sm: 0.875rem;    /* 14px */
+    --text-base: 0.9375rem;  /* 15px */
+    --text-lg: 1.125rem;    /* 18px */
+    --text-xl: 1.5rem;      /* 24px */
+    --text-2xl: 2rem;       /* 32px */
 
     /* --- 4px Spacing Grid --- */
     --space-1: 0.25rem;
@@ -51,82 +52,82 @@
     --space-24: 6rem;
     --space-32: 8rem;
 
-    /* --- Light Neutral Surface System --- */
-    --color-bg: #f8f7f4;
+    /* --- Light Slate Neutral Surface System --- */
+    --color-bg: #f8fafc; /* Slate 50 */
     --color-surface: #ffffff;
-    --color-surface-2: #fcfbf8;
-    --color-surface-offset: #f3f1ec;
-    --color-surface-offset-2: #ece8e1;
-    --color-surface-dynamic: #e7e2da;
-    --color-divider: #e3ded6;
-    --color-border: #ddd7ce;
+    --color-surface-2: #ffffff;
+    --color-surface-offset: #f1f5f9; /* Slate 100 */
+    --color-surface-offset-2: #e2e8f0; /* Slate 200 */
+    --color-surface-dynamic: #cbd5e1; /* Slate 300 */
+    --color-divider: #f1f5f9; /* Slate 100 */
+    --color-border: #e2e8f0; /* Slate 200 */
 
     /* --- Text --- */
-    --color-text: #1f2937;
-    --color-text-muted: #6b7280;
-    --color-text-faint: #9ca3af;
+    --color-text: #0f172a; /* Slate 900 */
+    --color-text-muted: #475569; /* Slate 600 */
+    --color-text-faint: #94a3b8; /* Slate 400 */
     --color-text-inverse: #ffffff;
 
-    /* --- Brand Accent --- */
-    --color-primary: #0f766e;
-    --color-primary-hover: #0b5f59;
-    --color-primary-active: #094b46;
-    --color-primary-highlight: #d8ebe8;
+    /* --- Brand Accent (Indigo) --- */
+    --color-primary: #4f46e5; /* Indigo 600 */
+    --color-primary-hover: #4338ca; /* Indigo 700 */
+    --color-primary-active: #3730a3; /* Indigo 800 */
+    --color-primary-highlight: #eef2ff; /* Indigo 50 */
 
     /* --- Semantic Colors --- */
-    --color-success: #4d7c0f;
-    --color-success-hover: #3f6212;
-    --color-success-highlight: #e7f1d7;
+    --color-success: #16a34a; /* Green 600 */
+    --color-success-hover: #15803d;
+    --color-success-highlight: #f0fdf4;
 
-    --color-warning: #b45309;
-    --color-warning-hover: #92400e;
-    --color-warning-highlight: #f6e1cd;
+    --color-warning: #ea580c; /* Orange 600 */
+    --color-warning-hover: #c2410c;
+    --color-warning-highlight: #fff7ed;
 
-    --color-error: #b42318;
-    --color-error-hover: #912018;
-    --color-error-highlight: #f9dfdc;
+    --color-error: #dc2626; /* Red 600 */
+    --color-error-hover: #b91c1c;
+    --color-error-highlight: #fef2f2;
 
-    --color-notification: #a16207;
-    --color-notification-highlight: #f3e5bf;
+    --color-notification: #d97706; /* Amber 600 */
+    --color-notification-highlight: #fef3c7;
 
-    --color-blue: #1d4ed8;
-    --color-blue-hover: #1e40af;
-    --color-blue-highlight: #dbe7fb;
+    --color-blue: #2563eb; /* Blue 600 */
+    --color-blue-hover: #1d4ed8;
+    --color-blue-highlight: #eff6ff;
 
-    --color-orange: #c2410c;
-    --color-orange-highlight: #f6ddcf;
+    --color-orange: #ea580c; /* Orange 600 */
+    --color-orange-highlight: #fff7ed;
 
-    --color-gold: #b08900;
-    --color-gold-highlight: #f3e8bf;
+    --color-gold: #ca8a04; /* Yellow 600 */
+    --color-gold-highlight: #fef9c3;
 
-    --color-purple: #7c3aed;
-    --color-purple-highlight: #ebe0ff;
+    --color-purple: #9333ea; /* Purple 600 */
+    --color-purple-highlight: #faf5ff;
 
     /* --- Border Radius --- */
     --radius-sm: 0.375rem;
-    --radius-md: 0.625rem;
-    --radius-lg: 0.875rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
     --radius-xl: 1rem;
     --radius-full: 9999px;
 
-    /* --- Glassmorphism Light System --- */
-    --color-surface-glass: rgba(255, 255, 255, 0.70);
-    --glass-border: rgba(221, 215, 206, 0.5);
-    --glass-blur: blur(12px);
-    --glass-shadow: 0 8px 30px 0 rgba(15, 23, 42, 0.02);
+    /* --- Glassmorphism Slate Light System --- */
+    --color-surface-glass: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(226, 232, 240, 0.8);
+    --glass-blur: blur(8px);
+    --glass-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.02);
 
     /* --- Transitions --- */
     --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
 
-    /* --- Shadows --- */
+    /* --- Layered Premium Shadows --- */
     --shadow-sm:
-      0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 6px rgba(15, 23, 42, 0.03);
+      0 1px 2px 0 rgba(0, 0, 0, 0.05);
 
     --shadow-md:
-      0 4px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.03);
+      0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
 
     --shadow-lg:
-      0 12px 28px rgba(15, 23, 42, 0.1), 0 4px 8px rgba(15, 23, 42, 0.05);
+      0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 
     /* --- Content Widths --- */
     --content-narrow: 640px;
@@ -141,6 +142,7 @@
    ============================================================ */
 
 @layer base {
+
   *,
   *::before,
   *::after {
@@ -169,8 +171,8 @@
     font-weight: 400;
     color: var(--color-text);
     background-color: var(--color-bg);
-    background-image: 
-      radial-gradient(var(--color-border) 1px, transparent 1px);
+    background-image:
+      radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px);
     background-size: 24px 24px;
     background-attachment: fixed;
   }
@@ -258,6 +260,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -274,6 +277,7 @@
    ============================================================ */
 
 @layer components {
+
   /* --- Layout Shell --- */
   .app-shell {
     min-height: 100dvh;
@@ -303,7 +307,7 @@
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--glass-shadow), var(--shadow-sm);
-    transition: 
+    transition:
       border-color var(--transition-interactive),
       box-shadow var(--transition-interactive),
       transform var(--transition-interactive);
@@ -321,7 +325,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
-    transition: 
+    transition:
       border-color var(--transition-interactive),
       box-shadow var(--transition-interactive),
       transform var(--transition-interactive);
@@ -362,7 +366,8 @@
 
   .section-heading {
     font-family: var(--font-display);
-    font-size: 1.375rem; /* 22px */
+    font-size: 1.375rem;
+    /* 22px */
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--color-text);
@@ -371,7 +376,8 @@
 
   .section-subheading {
     font-family: var(--font-display);
-    font-size: 1rem; /* 16px */
+    font-size: 1rem;
+    /* 16px */
     font-weight: 600;
     letter-spacing: -0.015em;
     color: var(--color-text);
@@ -419,7 +425,8 @@
 
   .kpi-value {
     font-family: var(--font-display);
-    font-size: 2rem; /* 32px */
+    font-size: 2rem;
+    /* 32px */
     font-weight: 700;
     letter-spacing: -0.04em;
     color: var(--color-text);
@@ -436,21 +443,25 @@
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-full);
     font-variant-numeric: tabular-nums;
+    border: 1px solid transparent;
   }
 
   .kpi-delta-up {
     color: var(--color-success);
     background-color: var(--color-success-highlight);
+    border-color: color-mix(in srgb, var(--color-success) 16%, transparent);
   }
 
   .kpi-delta-down {
     color: var(--color-error);
     background-color: var(--color-error-highlight);
+    border-color: color-mix(in srgb, var(--color-error) 16%, transparent);
   }
 
   .kpi-delta-flat {
     color: var(--color-text-muted);
     background-color: var(--color-surface-offset);
+    border-color: var(--color-border);
   }
 
   /* --- Metric Grid Layouts --- */
@@ -717,7 +728,7 @@
   }
 
   .table-wrap tbody tr:hover {
-    background-color: #faf8f4;
+    background-color: var(--color-primary-highlight);
   }
 
   .table-wrap tbody td {
@@ -767,18 +778,17 @@
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
   }
 
   .skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--color-surface-offset) 25%,
-      var(--color-surface-dynamic) 50%,
-      var(--color-surface-offset) 75%
-    );
+    background: linear-gradient(90deg,
+        var(--color-surface-offset) 25%,
+        var(--color-surface-dynamic) 50%,
+        var(--color-surface-offset) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
     border-radius: var(--radius-sm);
@@ -848,12 +858,10 @@
 
   .divider-subtle {
     height: 1px;
-    background: linear-gradient(
-      to right,
-      transparent,
-      var(--color-border),
-      transparent
-    );
+    background: linear-gradient(to right,
+        transparent,
+        var(--color-border),
+        transparent);
   }
 
   /* --- Nav Tab Bar --- */
@@ -1002,9 +1010,9 @@
     justify-content: center;
     color: var(--color-text-faint);
     box-shadow: var(--shadow-sm);
-    transition: 
-      border-color var(--transition-interactive), 
-      background-color var(--transition-interactive), 
+    transition:
+      border-color var(--transition-interactive),
+      background-color var(--transition-interactive),
       color var(--transition-interactive),
       box-shadow var(--transition-interactive),
       transform var(--transition-interactive);
@@ -1096,7 +1104,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    transition: 
+    transition:
       border-color var(--transition-interactive),
       background-color var(--transition-interactive),
       box-shadow var(--transition-interactive),
@@ -1226,7 +1234,7 @@
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-shadow), var(--shadow-sm);
-    transition: 
+    transition:
       border-color var(--transition-interactive),
       box-shadow var(--transition-interactive),
       transform var(--transition-interactive);
@@ -1499,6 +1507,7 @@
   }
 
   @media (max-width: 1200px) {
+
     .techdoc-grid-3,
     .techdoc-grid-4 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1506,6 +1515,7 @@
   }
 
   @media (max-width: 900px) {
+
     .techdoc-grid-2,
     .techdoc-grid-3,
     .techdoc-grid-4 {
@@ -1623,4 +1633,25 @@
   }
 }
 
+/* --- Visual UI Enhancements --- */
+.copy-badge-btn {
+  transition: all var(--transition-interactive);
+}
 
+.copy-badge-btn:hover {
+  background-color: var(--color-surface-offset-2) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-text-muted) !important;
+}
+
+.copy-badge-btn:active {
+  transform: scale(0.95);
+}
+
+.dropdown-item {
+  transition: all var(--transition-interactive);
+}
+
+.dropdown-item:hover {
+  transform: translateX(2px);
+}

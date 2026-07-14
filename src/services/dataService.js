@@ -495,7 +495,10 @@ function normalizePPTMetrics(data = {}) {
       file_created: safeBoolean(pptxValidation.file_created),
       file_size_bytes: safeNumber(pptxValidation.file_size_bytes),
       valid_xml: safeBoolean(pptxValidation.valid_xml),
+      valid_relationships: safeBoolean(pptxValidation.valid_relationships),
       opens_without_repair: safeBoolean(pptxValidation.opens_without_repair),
+      all_slides_present: safeBoolean(pptxValidation.all_slides_present),
+      all_media_present: safeBoolean(pptxValidation.all_media_present),
       health_score: safeNumber(pptxValidation.health_score),
     },
 
@@ -530,66 +533,79 @@ function normalizePPTMetrics(data = {}) {
 }
 
 function normalizeBRDMetrics(data = {}) {
+  const recordedAt = data.recorded_at || data.timing?.run_started_at || null;
+  const timing = safeObject(data.timing);
+  const cost = safeObject(data.cost);
+  const runOutcome = safeObject(data.run_outcome);
+  const llmUsage = safeObject(data.llm_usage);
+  const sections = safeObject(data.sections);
+  const quality = safeObject(data.quality);
+  const conflicts = safeObject(data.conflicts);
+  const output = safeObject(data.output);
+  const acceptance = safeObject(data.acceptance);
+  const system = safeObject(data.system);
+  const errors = safeObject(data.errors);
+
+  const status = runOutcome.success === true ? "success" : runOutcome.success === false ? "failed" : "unknown";
+
   return {
     ...data,
     run_id: safeString(data.run_id),
     project_id: safeString(data.project_id, "unknown"),
     agent: "brd",
-    timestamp: safeString(data.timestamp),
-    completed_at: safeString(data.completed_at),
-    status: safeString(data.status, "unknown"),
-    run_success: safeBoolean(data.run_success, data.status === "success"),
-    end_to_end_duration_seconds: safeNumber(data.end_to_end_duration_seconds),
-    estimated_cost_usd: safeNumber(data.estimated_cost_usd),
-    total_retry_count: safeNumber(data.total_retry_count),
-    review_cycle_count: safeNumber(data.review_cycle_count),
-    acceptance_status: safeString(data.acceptance_status, "not_reviewed"),
+    timestamp: safeString(recordedAt),
+    completed_at: safeString(timing.run_ended_at || recordedAt),
+    status,
+    run_success: safeBoolean(runOutcome.success, status === "success"),
+    end_to_end_duration_seconds: safeNumber(timing.total_duration_seconds),
+    estimated_cost_usd: safeNumber(cost.total_cost_usd),
+    total_retry_count: safeNumber(data.total_retry_count, 0),
+    review_cycle_count: safeNumber(sections.review_cycles?.total_regenerations, 0),
+    acceptance_status: safeString(acceptance.status, "not_reviewed"),
     llm_usage: {
-      total_prompt_tokens: safeNumber(data.llm_usage?.prompt_tokens ?? data.llm_usage?.total_prompt_tokens),
+      total_prompt_tokens: safeNumber(llmUsage.prompt_tokens ?? llmUsage.total_prompt_tokens),
       total_completion_tokens: safeNumber(
-        data.llm_usage?.completion_tokens ?? data.llm_usage?.total_completion_tokens,
+        llmUsage.completion_tokens ?? llmUsage.total_completion_tokens,
       ),
-      total_tokens: safeNumber(data.llm_usage?.total_tokens),
-      estimated_cost_usd: safeNumber(
-        data.llm_usage?.estimated_cost_usd ?? data.estimated_cost_usd ?? data.cost?.total_cost_usd,
-      ),
-      by_stage: data.llm_usage?.by_stage,
+      total_tokens: safeNumber(llmUsage.total_tokens),
+      estimated_cost_usd: safeNumber(cost.total_cost_usd),
+      by_stage: llmUsage.by_stage,
     },
     quality: {
       overall_score: safeNumber(
-        data.quality?.overall_score ?? data.requirement_quality_score,
+        quality.requirement_quality?.smart_scores?.avg_score ?? quality.overall_score,
       ),
-      requirement_quality: data.quality?.requirement_quality,
-      section_completeness: data.quality?.section_completeness,
+      requirement_quality: quality.requirement_quality,
+      section_completeness: quality.section_completeness,
     },
     conflicts: {
-      detected_count: safeNumber(data.conflicts?.detected_count),
-      resolved_count: safeNumber(data.conflicts?.resolved_count),
-      unresolved_count: safeNumber(data.conflicts?.unresolved_count),
-      high_impact_count: safeNumber(data.conflicts?.high_impact_count),
-      medium_impact_count: safeNumber(data.conflicts?.medium_impact_count),
-      low_impact_count: safeNumber(data.conflicts?.low_impact_count),
-      resolution_rate_pct: safeNumber(data.conflicts?.resolution_rate_pct),
-      accuracy_feedback: safeString(data.conflicts?.accuracy_feedback),
+      detected_count: safeNumber(conflicts.detected_count),
+      resolved_count: safeNumber(conflicts.resolved_count),
+      unresolved_count: safeNumber(conflicts.unresolved_count),
+      high_impact_count: safeNumber(conflicts.high_impact_count),
+      medium_impact_count: safeNumber(conflicts.medium_impact_count),
+      low_impact_count: safeNumber(conflicts.low_impact_count),
+      resolution_rate_pct: safeNumber(conflicts.resolution_rate_pct),
+      accuracy_feedback: safeString(conflicts.accuracy_feedback),
     },
     sections: {
-      attempted: safeNumber(data.sections?.attempted),
-      succeeded: safeNumber(data.sections?.succeeded),
-      failed: safeNumber(data.sections?.failed),
-      success_rate_pct: safeNumber(data.sections?.success_rate_pct),
-      review_cycles: safeObject(data.sections?.review_cycles),
+      attempted: safeNumber(sections.attempted),
+      succeeded: safeNumber(sections.succeeded),
+      failed: safeNumber(sections.failed),
+      success_rate_pct: safeNumber(sections.success_rate_pct),
+      review_cycles: sections.review_cycles,
     },
     brd_output: {
-      health: safeNumber(data.brd_output?.health),
+      health: safeNumber(output.file_generated === true ? 1.0 : 0.0),
     },
     errors: {
-      total_errors: safeNumber(data.errors?.total_errors),
+      total_errors: safeNumber(errors.total_errors ?? (runOutcome.success === false ? 1 : 0)),
     },
     system: {
-      peak_memory_mb: safeNumber(data.system?.peak_memory_mb),
-      avg_memory_mb: safeNumber(data.system?.avg_memory_mb),
-      cpu_percent_avg: safeNumber(data.system?.cpu_percent_avg),
-      cpu_percent_peak: safeNumber(data.system?.cpu_percent_peak),
+      peak_memory_mb: safeNumber(system.peak_memory_mb),
+      avg_memory_mb: safeNumber(system.avg_memory_mb),
+      cpu_percent_avg: safeNumber(system.cpu_percent_avg),
+      cpu_percent_peak: safeNumber(system.cpu_percent_peak),
     },
   };
 }
@@ -665,69 +681,97 @@ function normalizeOverviewRun(raw = {}) {
   const rawAgent = safeString(raw.agent, "unknown").toLowerCase();
 
   const agent =
-    rawAgent === "ppt-architect"
+    rawAgent === "ppt-architect" || rawAgent === "ppt"
       ? "ppt"
-      : rawAgent === "brd-agent"
+      : rawAgent === "brd-agent" || rawAgent === "brd"
         ? "brd"
-        : rawAgent;
+        : rawAgent === "technical-document" || rawAgent === "technical-agent"
+          ? "technical-document"
+          : rawAgent;
 
   const status = getMonitoredAgentStatus(raw);
   const success = status === "success";
 
   const durationSeconds = safeNumber(
-    raw.end_to_end_duration_seconds ?? raw.duration?.total_seconds,
+    raw.end_to_end_duration_seconds ??
+    raw.duration?.total_seconds ??
+    raw.timing?.total_duration_seconds
   );
 
   const totalTokens = safeNumber(
-    raw.llm_usage?.total_tokens ?? raw.llm_tokens?.total?.total_tokens,
+    raw.llm_usage?.total_tokens ??
+    raw.llm_tokens?.total?.total_tokens
   );
 
   const promptTokens = safeNumber(
-    raw.llm_usage?.total_prompt_tokens ?? raw.llm_tokens?.total?.prompt_tokens,
+    raw.llm_usage?.total_prompt_tokens ??
+    raw.llm_usage?.prompt_tokens ??
+    raw.llm_tokens?.total?.prompt_tokens
   );
 
   const completionTokens = safeNumber(
     raw.llm_usage?.total_completion_tokens ??
-      raw.llm_tokens?.total?.completion_tokens,
+    raw.llm_usage?.completion_tokens ??
+    raw.llm_tokens?.total?.completion_tokens
   );
 
   const estimatedCostUsd = safeNumber(
-    raw.llm_usage?.estimated_cost_usd ?? raw.estimated_cost_usd,
+    raw.llm_usage?.estimated_cost_usd ??
+    raw.estimated_cost_usd ??
+    raw.cost?.total_cost_usd
   );
 
   const qualityScore = safeNumber(
     raw.generation?.avg_quality_score ??
-      raw.quality?.overall_score ??
-      raw.requirement_quality_score,
+    raw.quality?.overall_score ??
+    raw.quality?.requirement_quality?.smart_scores?.avg_score ??
+    raw.requirement_quality_score
   );
 
-  const validationHealth = safeNumber(
-    raw.assembly?.output_validation_success === true
-      ? 1
-      : (raw.pptx_validation?.health_score ?? raw.brd_output?.health),
-  );
+  const validationHealth = (() => {
+    if (raw.assembly?.output_validation_success !== undefined) {
+      return raw.assembly.output_validation_success === true ? 1 : 0;
+    }
+    if (raw.pptx_validation?.health_score !== undefined) {
+      return safeNumber(raw.pptx_validation.health_score);
+    }
+    if (raw.output?.file_generated !== undefined) {
+      return raw.output.file_generated === true ? 1 : 0;
+    }
+    if (raw.brd_output?.health !== undefined) {
+      return safeNumber(raw.brd_output.health);
+    }
+    return 0;
+  })();
 
   const retries = safeNumber(
     raw.generation?.llm_retries ??
-      raw.total_retry_count ??
-      raw.slides?.retry_count,
+    raw.total_retry_count ??
+    raw.slides?.retry_count ??
+    raw.total_retries
   );
 
   const errorCount = safeNumber(
-    raw.errors?.total_errors ?? (raw.error_details?.occurred ? 1 : 0),
+    raw.errors?.total_errors ??
+    (raw.error_details?.occurred ? 1 : 0) ??
+    (raw.run_outcome?.error_message ? 1 : 0)
   );
 
   const reviewCycles = safeNumber(
-    raw.review?.review_cycles ?? raw.review_cycle_count,
+    raw.review?.review_cycles ??
+    raw.review_cycle_count ??
+    raw.sections?.review_cycles?.total_regenerations
   );
 
   const acceptanceStatus = safeString(
-    raw.quality_metrics?.acceptance_flag ?? raw.acceptance_status,
-    "not_reviewed",
+    raw.quality_metrics?.acceptance_flag ??
+    raw.acceptance_status ??
+    raw.acceptance?.status ??
+    "not_reviewed"
   );
 
-  const startedAt = raw.timestamp_start || raw.timestamp || null;
-  const completedAt = raw.completed_at || raw.timestamp_end || null;
+  const startedAt = raw.timestamp_start || raw.timestamp || raw.timing?.run_started_at || null;
+  const completedAt = raw.completed_at || raw.timestamp_end || raw.timing?.run_ended_at || null;
   const lastSeenAt = completedAt || startedAt;
 
   return {
@@ -778,6 +822,7 @@ function buildAgentSummary(agentId, runs = []) {
       avgQuality: 0,
       avgValidationHealth: 0,
       avgTokens: 0,
+      avgReviewCycles: 0,
       totalErrors: 0,
       totalRetries: 0,
       latestRunAt: null,
@@ -820,6 +865,7 @@ function buildAgentSummary(agentId, runs = []) {
       ),
     ),
     avgTokens: average(runs.map((run) => run.totalTokens)),
+    avgReviewCycles: average(runs.map((run) => run.reviewCycles)),
     totalErrors: sum(runs.map((run) => run.errorCount)),
     totalRetries: sum(runs.map((run) => run.retries)),
     latestRunAt: latestTimestamp(runs.map((run) => run.latestTimestamp)),
@@ -850,7 +896,14 @@ async function loadNormalizedRunsForAgent(agentId) {
 
   return metricsList
     .filter(Boolean)
-    .map((metrics) => normalizeOverviewRun(metrics))
+    .map((metrics) => {
+      const normalized = normalizeOverviewRun(metrics);
+      if (!normalized.agent || normalized.agent === "unknown") {
+        normalized.agent = agentId;
+        normalized.agentName = getAgentDisplayName(agentId);
+      }
+      return normalized;
+    })
     .filter((run) => run.agent === agentId);
 }
 
@@ -858,10 +911,20 @@ export async function loadOverviewData() {
   const agentIds = getMonitoredAgentIds();
 
   const runsByAgentEntries = await Promise.all(
-    agentIds.map(async (agentId) => [
-      agentId,
-      await loadNormalizedRunsForAgent(agentId),
-    ]),
+    agentIds.map(async (agentId) => {
+      const runs = await loadNormalizedRunsForAgent(agentId);
+      // Sort in ascending order of execution timestamp (oldest to newest)
+      const sorted = [...runs].sort(
+        (a, b) => new Date(a.startedAt || a.latestTimestamp || 0).getTime() -
+                  new Date(b.startedAt || b.latestTimestamp || 0).getTime()
+      );
+      // Dynamically create underscore prefix from agent display name
+      const prefix = getAgentDisplayName(agentId).replace(/\s+/g, "_");
+      sorted.forEach((run, index) => {
+        run.runLabel = `${prefix}_${index + 1}`;
+      });
+      return [agentId, sorted];
+    }),
   );
 
   const runsByAgent = Object.fromEntries(runsByAgentEntries);
@@ -890,6 +953,8 @@ export async function loadOverviewData() {
       successRate: totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : 0,
       avgDuration: average(normalizedRuns.map((run) => run.durationSeconds)),
       avgCost: average(normalizedRuns.map((run) => run.estimatedCostUsd)),
+      avgTokens: average(normalizedRuns.map((run) => run.totalTokens)),
+      avgReviewCycles: average(normalizedRuns.map((run) => run.reviewCycles)),
       avgQuality: average(
         normalizedRuns.map((run) =>
           Number.isFinite(run.qualityScore) && run.qualityScore > 0
@@ -934,6 +999,16 @@ export async function loadOverviewData() {
         agentId: item.agentId,
         agent: item.agentName,
         value: Number((item.avgQuality * 100).toFixed(1)),
+      })),
+      avgTokens: agentSummaries.map((item) => ({
+        agentId: item.agentId,
+        agent: item.agentName,
+        value: Math.round(item.avgTokens),
+      })),
+      avgReviewCycles: agentSummaries.map((item) => ({
+        agentId: item.agentId,
+        agent: item.agentName,
+        value: Number(item.avgReviewCycles.toFixed(2)),
       })),
       runVolume: agentSummaries.map((item) => ({
         agentId: item.agentId,
@@ -980,3 +1055,40 @@ export async function loadOverviewData() {
       .slice(0, 8),
   };
 }
+
+export async function loadAgentRunsDetailed(agentId) {
+  const runFiles = await loadRuns(agentId);
+  if (!runFiles.length) return [];
+
+  const metricsList = await Promise.all(
+    runFiles.map(async (filename) => {
+      const data = await loadMetrics(agentId, filename);
+      if (data) {
+        data.filename = filename;
+      }
+      return data;
+    })
+  );
+
+  const validMetrics = metricsList.filter(Boolean);
+
+  // Sort in ascending order of execution timestamp (oldest to newest)
+  validMetrics.sort((a, b) => {
+    const aStarted = a.timestamp_start || a.timestamp || a.timing?.run_started_at || a.recorded_at || 0;
+    const bStarted = b.timestamp_start || b.timestamp || b.timing?.run_started_at || b.recorded_at || 0;
+    return new Date(aStarted).getTime() - new Date(bStarted).getTime();
+  });
+
+  const prefix = getAgentDisplayName(agentId).replace(/\s+/g, "_");
+  validMetrics.forEach((run, index) => {
+    run.runLabel = `${prefix}_${index + 1}`;
+  });
+
+  // Return sorted descending (newest run first) so that the dropdown naturally displays the latest run first
+  return [...validMetrics].sort((a, b) => {
+    const aStarted = a.timestamp_start || a.timestamp || a.timing?.run_started_at || a.recorded_at || 0;
+    const bStarted = b.timestamp_start || b.timestamp || b.timing?.run_started_at || b.recorded_at || 0;
+    return new Date(bStarted).getTime() - new Date(aStarted).getTime();
+  });
+}
+
